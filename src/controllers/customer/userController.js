@@ -204,8 +204,8 @@ exports.verifyOTP = async(req, res) =>{
     /* if (!user) {
       return res.status(401).json({ message: 'User not found' });
     } */
-    const token = jwt.sign({ userId: userr._id }, process.env.JWT_SECRET_CURRENT, { expiresIn: '1h' });
-    const refreshToken = jwt.sign({ userId: userr._id }, process.env.JWT_REFRESH_SECRET_CURRENT, { expiresIn: '30d' });
+    const token = jwt.sign({ userId: userr._id }, process.env.JWT_SECRET_CURRENT, { expiresIn: '3m' });
+    const refreshToken = jwt.sign({ userId: userr._id }, process.env.JWT_REFRESH_SECRET_CURRENT, { expiresIn: '5m' });
     const epochTime = Math.floor(Date.now() / 1000); // Get the current epoch time
 
     customerLogger.info(`Login successful userid: ${userr._id}`);
