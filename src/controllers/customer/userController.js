@@ -223,7 +223,7 @@ exports.refreshToken = async(req, res) =>{
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET_CURRENT);
-    const accessToken = jwt.sign({ userId: decoded.userId }, process.env.JWT_SECRET_CURRENT, { expiresIn: '1h' });
+    const accessToken = jwt.sign({ userId: decoded.userId }, process.env.JWT_SECRET_CURRENT, { expiresIn: '3m' });
     const epochTime = Math.floor(Date.now() / 1000); // Get the current epoch time
     res.status(200).json({ accessToken, epochTime, message: 'expiry time is 1h' });
   } catch (error) {
