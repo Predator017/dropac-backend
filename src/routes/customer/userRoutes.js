@@ -5,7 +5,7 @@ const authMiddleware = require('../../middlewares/authMiddleware');
 
 router.post('/register', userController.registerUser);
 router.post('/login', userController.loginUser);
-router.post('/refresh-token', authMiddleware, userController.refreshToken);
+router.post('/refresh-token', userController.refreshToken);
 router.post('/verify-otp', userController.verifyOTP);
 
 router.post('/calculate-prices', authMiddleware, userController.calculatePrices);

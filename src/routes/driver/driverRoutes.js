@@ -8,7 +8,7 @@ router.post('/register', driverController.register);
 router.post('/login', driverController.login);
 router.post('/send-otp', driverController.sendOtp);
 router.post('/verify-otp', driverController.verifyOtp);
-router.post('/refresh-token',authMiddleware, driverController.refreshToken);
+router.post('/refresh-token', driverController.refreshToken);
 router.get('/profile/:driverId', authMiddleware, driverController.getDriverProfile);
 router.post('/update-driver', authMiddleware, driverController.updateDriver);
 router.post('/clear-dues/:driverId',authMiddleware, driverController.clearDues);
