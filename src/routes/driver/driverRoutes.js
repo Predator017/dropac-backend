@@ -6,7 +6,6 @@ const authMiddleware = require('../../middlewares/authMiddleware');
 
 router.post('/register', driverController.register);
 router.post('/login', driverController.login);
-router.post('/send-otp', driverController.sendOtp);
 router.post('/verify-otp', driverController.verifyOtp);
 router.post('/refresh-token', driverController.refreshToken);
 router.get('/profile/:driverId', authMiddleware, driverController.getDriverProfile);

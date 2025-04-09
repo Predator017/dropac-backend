@@ -61,16 +61,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// Send OTP
-exports.sendOtp = async (req, res) => {
-  try {
-    const { mobile } = req.body;
-    const otp = await otpService.sendOTP(mobile);
-    res.status(200).json({ message: 'OTP sent successfully', otp });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to send OTP', details: error.message });
-  }
-};
 
 // Verify OTP
 exports.verifyOtp = async (req, res) => {
