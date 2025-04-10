@@ -99,7 +99,7 @@ exports.verifyOtp = async (req, res) => {
 exports.refreshToken = async (req, res) => {
   const { token } = req.body;
   if (!token) {
-    return res.status(401).json({ message: 'Refresh token is required' });
+    return res.status(403).json({ message: 'Refresh token is required' });
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET_CURRENT);
@@ -107,7 +107,8 @@ exports.refreshToken = async (req, res) => {
     const epochTime = Math.floor(Date.now() / 1000); // Get the current epoch time
     res.status(200).json({ accessToken, epochTime, message: 'expiry time is 1h' });
   } catch (error) {
-    res.status(401).json({ message: 'Invalid refresh token', error });
+    driverLogger.error(`Invalid refresh token error: ${error}`);
+    res.status(403).json({ message: 'Invalid refresh token', error });
   }
 };
 
