@@ -84,8 +84,8 @@ exports.verifyOtp = async (req, res) => {
       const driverr = await Driver.findOne({ mobile });
 
 
-      const token = jwt.sign({ userId: driverr._id }, process.env.JWT_SECRET_CURRENT, { expiresIn: '2m' });
-      const refreshToken = jwt.sign({ userId: driverr._id }, process.env.JWT_REFRESH_SECRET_CURRENT, { expiresIn: '3m' });
+      const token = jwt.sign({ userId: driverr._id }, process.env.JWT_SECRET_CURRENT, { expiresIn: '1h' });
+      const refreshToken = jwt.sign({ userId: driverr._id }, process.env.JWT_REFRESH_SECRET_CURRENT, { expiresIn: '30d' });
       const epochTime = Math.floor(Date.now() / 1000); // Get the current epoch time
       driverLogger.info(`Login successful driverid: ${driverr._id}`);
       res.status(200).json({ message: 'Login successful and token expire time is 1h', token, refreshToken, epochTime, userId: driverr._id  });
@@ -103,7 +103,7 @@ exports.refreshToken = async (req, res) => {
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET_CURRENT);
-    const accessToken = jwt.sign({ userId: decoded.userId }, process.env.JWT_SECRET_CURRENT, { expiresIn: '2m' });
+    const accessToken = jwt.sign({ userId: decoded.userId }, process.env.JWT_SECRET_CURRENT, { expiresIn: '1h' });
     const epochTime = Math.floor(Date.now() / 1000); // Get the current epoch time
     res.status(200).json({ accessToken, epochTime, message: 'expiry time is 1h' });
   } catch (error) {
