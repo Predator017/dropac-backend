@@ -9,6 +9,7 @@ const NodeCache = require("node-cache");
 const { CancelledRidesByDriver, CompletedRidesByDriver } = require("../../models/driver/DriverRideData");
 const {CompletedRidesByUser} = require("../../models/customer/CustomerRideData");
 const rideLogger = require("../../utils/logger/rideLogger");
+const paymentLogger = require("../../utils/logger/paymentLogger");
 
 let rideCache = new NodeCache({ stdTTL: 600 });
 
@@ -594,9 +595,18 @@ exports.ridePaymentStatus = async (req, res) => {
 
 
         const todayDate = new Date().toISOString().split("T")[0]; // Get today's date in YYYY-MM-DD format
-    
+        
+        const authToken = req.headers.authorization;
+
         // Call the existing API internally
-        const response = await fetch(`https://dropac-backend.onrender.com/api/driver-rides/transaction/${ride.driverId}/${todayDate}`);
+        const response = await fetch(
+          `https://dropac-backend.onrender.com/api/driver-rides/transaction/${ride.driverId}/${todayDate}`,
+          {
+            headers: {
+                'Authorization': authToken
+              }
+          }
+        );
         const data = await response.json();
 
 
@@ -619,10 +629,14 @@ exports.ridePaymentStatus = async (req, res) => {
         
 
         await driver.save();
+        paymentLogger.info(`Payment status updated successfully ride id: ${ride._id}, driverId : ${ride.driverId}` );
 
         res.status(200).json({ message: 'Payment status updated successfully', ride });
     } catch (error) {
+        console.log("payment error: ",error);
         res.status(500).json({ error: 'Failed to update payment status', details: error.message });
+        paymentLogger.error(`Failed to update payment status:  error: ${error}` );
+
     }
 };
 
