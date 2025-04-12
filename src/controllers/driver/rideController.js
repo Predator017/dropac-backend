@@ -596,7 +596,7 @@ exports.ridePaymentStatus = async (req, res) => {
         const todayDate = new Date().toISOString().split("T")[0]; // Get today's date in YYYY-MM-DD format
     
         // Call the existing API internally
-        const response = await fetch(`https://dropac-drivermanagement.onrender.com/api/driver-rides/transaction/${ride.driverId}/${todayDate}`);
+        const response = await fetch(`https://dropac-backend.onrender.com/api/driver-rides/transaction/${ride.driverId}/${todayDate}`);
         const data = await response.json();
 
 
