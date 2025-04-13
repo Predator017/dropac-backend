@@ -13,7 +13,7 @@ const upload = multer({
 
 
 router.post('/upload-image',authMiddleware, upload.single('image'), documentController.uploadImage);
-router.get('/file/:id', authMiddleware, documentController.getImage);
+router.get('/file/:id', documentController.getImage);
 
 
 
