@@ -24,8 +24,10 @@ exports.initiatePayment = async (req, res) => {
     });
     await newPayment.save();
 
+  
+
     const options = {
-      amount: amount * 100, // Convert amount to paise
+      amount: (Number(amount) * 100).toFixed(0), // Convert amount to paise
       currency,
       receipt,
       notes,
