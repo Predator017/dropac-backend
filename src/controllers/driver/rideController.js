@@ -690,39 +690,48 @@ exports.getAllDriverTransactions = async (req, res) => {
 
 exports.getTransactionByDate = async (req, res) => {
   try {
-      const date = new Date(req.params.date);
-      const nextDate = new Date(date);
-      nextDate.setDate(date.getDate() + 1);
-
-      // Fetch rides with createdAt stored as a string
-      const rides = await Ride.aggregate([
-          {
-              $match: {
-                  driverId: req.params.driverId,
-                  status: "completed",
-                  $expr: {
-                      $and: [
-                          { $gte: [{ $dateFromString: { dateString: "$createdAt" } }, date] },
-                          { $lt: [{ $dateFromString: { dateString: "$createdAt" } }, nextDate] }
-                      ]
-                  }
-              }
+    const date = new Date(req.params.date);
+    const nextDate = new Date(date);
+    nextDate.setDate(date.getDate() + 1);
+    
+    // Fetch rides with completedAt matching the date and calculate total driverShare
+    const rides = await Ride.aggregate([
+      {
+        $match: {
+          driverId: req.params.driverId,
+          status: "completed",
+          $expr: {
+            $and: [
+              { $gte: [{ $dateFromString: { dateString: "$completedAt" } }, date] },
+              { $lt: [{ $dateFromString: { dateString: "$completedAt" } }, nextDate] }
+            ]
           }
-      ]).sort({ createdAt: -1 });
-
-      // Fetch driver document
-      const driver = await Driver.findById(req.params.driverId);
-      if (!driver) {
-          return res.status(404).json({ error: 'Driver not found' });
-      }
-
-      // Access walletBalance from driver document
-      const walletBalance = driver.walletBalance;
-
-      // Combine rides and walletBalance into a single response object
-      res.status(200).json({ rides, walletBalance });
+        }
+      },
+      { $sort: { completedAt: -1 } }
+    ]);
+    
+    // Calculate total driverShare
+    const todayDriverShare = rides.reduce((total, ride) => 
+      total + (ride.driverShare || 0), 0);
+    
+    // Fetch driver document
+    const driver = await Driver.findById(req.params.driverId);
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+    
+    // Access walletBalance from driver document
+    const walletBalance = driver.walletBalance;
+    
+    // Combine rides, walletBalance, and todayDriverShare into response
+    res.status(200).json({ 
+      rides, 
+      walletBalance,
+      todayDriverShare
+    });
   } catch (error) {
-      res.status(500).json({ error: 'Failed to retrieve rides', details: error.message });
+    res.status(500).json({ error: 'Failed to retrieve rides', details: error.message });
   }
 };
 
