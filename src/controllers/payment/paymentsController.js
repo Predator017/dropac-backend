@@ -14,12 +14,13 @@ const razorpay = new Razorpay({
 
 exports.initiatePayment = async (req, res) => {
   try {
-    const { amount, currency, receipt, notes } = req.body;
+    const { amount, currency, receipt, notes, joiningFee } = req.body;
 
     const newPayment = new Payment({
       userId: req.user.userId,
       amount,
       currency,
+      joiningFee,
       created_at: moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss")
     });
     await newPayment.save();

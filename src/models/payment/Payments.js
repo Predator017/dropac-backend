@@ -7,7 +7,7 @@ const paymentSchema = new mongoose.Schema({
     // paymentMethodId: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentMethod', required: true },
     // description: { type: String },
     status: { type: String, enum: ['Initiated', 'Completed', 'Failed'], default: 'Initiated' },
-   // joiningFee: {type: boolean}, //joining fee or clear dues.. true or false
+    joiningFee: {type: boolean}, //joining fee or clear dues.. true or false
     razorpayOrderId: { type: String },  // Razorpay Order ID
     razorpayPaymentId: { type: String },  // Razorpay Payment ID
     transactionId: { type: String },  // Optionally, you can still store this if needed\
