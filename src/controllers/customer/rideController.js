@@ -1,5 +1,6 @@
 const { getChannel, publishToQueue } = require("../../services/rabbitmqService");
 const Ride = require("../../models/Ride");
+const Driver = require("../../models/driver/Driver");
 const moment = require('moment-timezone');
 const { CancelledRidesByUser } = require("../../models/customer/CustomerRideData");
 const rideLogger = require('../../utils/logger/rideLogger');
@@ -216,12 +217,22 @@ exports.rateDriver = async (req, res) =>{
   const {rideId, rating} = req.body;
   try {
     const ride = await Ride.findById(rideId);
+    const driver = await Driver.findById(ride.driverId);
     if (!ride) {
       return res.status(404).json({ message: "Ride not found" });
     }
 
     ride.ratingByUser = rating;
     await ride.save();
+
+    if(driver.rating === 0){
+      driver.rating = rating;
+    }
+    else{
+      driver.rating = (driver.rating + rating)/2;
+    }
+    
+    await driver.save();
 
     // If the ride is still valid, return its status
     res.status(200).json({ message: "Thanks for your rating, we appreciate that :)", ride });
