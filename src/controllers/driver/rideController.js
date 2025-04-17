@@ -702,13 +702,15 @@ exports.ridePaymentStatus = async (req, res) => {
     const { rides, walletBalance } = data;
 
     const fare = ride.fare;
+    let part80;
+    let part20;
 
     if (ride.vehicleType == "Bike") {
-      const part80 = fare * 0.9;
-      const part20 = fare * 0.1;
+      part80 = fare * 0.9;
+      part20 = fare * 0.1;
     } else {
-      const part80 = fare * 0.82;
-      const part20 = fare * 0.18;
+      part80 = fare * 0.82;
+      part20 = fare * 0.18;
     }
 
     if (rides.length === 0) {
