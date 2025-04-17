@@ -1,20 +1,24 @@
 const express = require("express");
-const { getChannel, publishToQueue } = require("../../services/rabbitmqService");
+const {
+  getChannel,
+  publishToQueue,
+} = require("../../services/rabbitmqService");
 const Ride = require("../../models/Ride");
 const Driver = require("../../models/driver/Driver");
-const moment = require('moment-timezone');
-
+const moment = require("moment-timezone");
 
 const NodeCache = require("node-cache");
-const { CancelledRidesByDriver, CompletedRidesByDriver } = require("../../models/driver/DriverRideData");
-const {CompletedRidesByUser} = require("../../models/customer/CustomerRideData");
+const {
+  CancelledRidesByDriver,
+  CompletedRidesByDriver,
+} = require("../../models/driver/DriverRideData");
+const {
+  CompletedRidesByUser,
+} = require("../../models/customer/CustomerRideData");
 const rideLogger = require("../../utils/logger/rideLogger");
 const paymentLogger = require("../../utils/logger/paymentLogger");
 
 let rideCache = new NodeCache({ stdTTL: 600 });
-
-
-
 
 function addRideToCache(cache, riderId, rideId) {
   // Retrieve the existing array for the riderId from the cache
@@ -30,12 +34,10 @@ function addRideToCache(cache, riderId, rideId) {
   }
 }
 
-
 function isRideInCache(cache, riderId, rideId) {
   const rideArray = cache.get(riderId) || [];
   return rideArray.includes(rideId);
 }
-
 
 // Helper function to calculate distance (you can replace this with a better formula)
 async function calculateDistance(userCoordinates, driverCoordinates) {
@@ -51,20 +53,22 @@ async function calculateDistance(userCoordinates, driverCoordinates) {
     const data = await response.json(); // Wait for JSON parsing
 
     if (data.routes?.[0]?.legs?.[0]) {
-      const distanceInMeters = data.routes[0].legs[0].distance.value;  // This is in meters
-    
-    // Convert distance to kilometers
-    const distanceInKilometers = distanceInMeters / 1000;  // Convert meters to kilometers
+      const distanceInMeters = data.routes[0].legs[0].distance.value; // This is in meters
 
-    // Optionally, you can format the result to a specific decimal point for readability
-    const formattedDistance = distanceInKilometers.toFixed(3);  
+      // Convert distance to kilometers
+      const distanceInKilometers = distanceInMeters / 1000; // Convert meters to kilometers
+
+      // Optionally, you can format the result to a specific decimal point for readability
+      const formattedDistance = distanceInKilometers.toFixed(3);
       //console.log(formattedDistance);
       return formattedDistance;
     } else {
       throw new Error("No route found");
     }
   } catch (error) {
-    rideLogger.error(`Error fetching distance from Google Maps API: error: ${error}` );
+    rideLogger.error(
+      `Error fetching distance from Google Maps API: error: ${error}`
+    );
 
     // Fallback to Haversine formula if API fails
     return haversineDistance(userLat, userLon, driverLat, driverLon);
@@ -78,12 +82,13 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   const dLon = deg2rad(lon2 - lon1);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // Distance in km
 }
-
 
 function deg2rad(deg) {
   return deg * (Math.PI / 180);
@@ -108,7 +113,7 @@ exports.assignRide = async (req, res) => {
     const queueName = outStation ? "outstation-ride-requests" : "ride-requests";
 
     await channel.assertQueue(queueName, { durable: true });
-    
+
     //console.log(`Driver ${riderId} is listening for ride requests on queue ${queueName}...`);
 
     // Set up cancellation and cleanup
@@ -116,19 +121,21 @@ exports.assignRide = async (req, res) => {
       if (consumerTag && consumerTag.consumerTag) {
         try {
           if (
-            channel && 
-            channel.connection && 
-            channel.connection.stream.writable && 
+            channel &&
+            channel.connection &&
+            channel.connection.stream.writable &&
             !channel.connection.closing
           ) {
             await channel.cancel(consumerTag.consumerTag);
             //console.log(`Consumer for driver ${riderId} cancelled`);
           }
         } catch (cancelError) {
-          rideLogger.error(`Error cancelling consumer for driver ${riderId}:, error: ${cancelError}`);
+          rideLogger.error(
+            `Error cancelling consumer for driver ${riderId}:, error: ${cancelError}`
+          );
         }
       }
-      
+
       // Clear timeout if it exists
       if (responseTimeout) {
         clearTimeout(responseTimeout);
@@ -139,7 +146,9 @@ exports.assignRide = async (req, res) => {
     responseTimeout = setTimeout(async () => {
       if (!rideAssigned && !res.headersSent) {
         //console.log(`No suitable ride found for driver ${riderId} within timeout.`);
-        res.status(404).json({ message: "No suitable ride found within the radius" });
+        res
+          .status(404)
+          .json({ message: "No suitable ride found within the radius" });
         await cleanup();
       }
     }, 10000);
@@ -153,17 +162,19 @@ exports.assignRide = async (req, res) => {
         try {
           const rideRequest = JSON.parse(msg.content.toString());
 
-          // Vehicle type validation 
-          const vehicleMatches = 
-            (rideRequest.vehicleType === "Bike" && 
-              (driver.bodyDetails === "Bike" || driver.bodyDetails === "Scooter")) ||
-            (rideRequest.vehicleType === "3-Wheeler" && 
-              (driver.bodyDetails === "Electric 3 Wheeler" || driver.bodyDetails === "3 Wheeler")) ||
-            (rideRequest.vehicleType === "Tata Ace" && 
+          // Vehicle type validation
+          const vehicleMatches =
+            (rideRequest.vehicleType === "Bike" &&
+              (driver.bodyDetails === "Bike" ||
+                driver.bodyDetails === "Scooter")) ||
+            (rideRequest.vehicleType === "3-Wheeler" &&
+              (driver.bodyDetails === "Electric 3 Wheeler" ||
+                driver.bodyDetails === "3 Wheeler")) ||
+            (rideRequest.vehicleType === "Tata Ace" &&
               driver.bodyDetails.startsWith("7 Feet")) ||
-            (rideRequest.vehicleType === "8ft Truck" && 
+            (rideRequest.vehicleType === "8ft Truck" &&
               driver.bodyDetails.startsWith("8 Feet")) ||
-            (rideRequest.vehicleType === "9ft Truck" && 
+            (rideRequest.vehicleType === "9ft Truck" &&
               driver.bodyDetails.startsWith("9 Feet"));
 
           if (!vehicleMatches) {
@@ -174,7 +185,10 @@ exports.assignRide = async (req, res) => {
 
           // Calculate distance
           const distance = await calculateDistance(
-            [rideRequest.pickupDetails.pickupLat, rideRequest.pickupDetails.pickupLon],
+            [
+              rideRequest.pickupDetails.pickupLat,
+              rideRequest.pickupDetails.pickupLon,
+            ],
             driverLocation.coordinates
           );
 
@@ -182,17 +196,19 @@ exports.assignRide = async (req, res) => {
 
           if (distance <= 10) {
             //rideLogger.info(`Driver ${riderId} is within range. Assigning ride ${rideRequest._id}`);
-            
+
             // Critical: Don't consume the message, just requeue it
             // This ensures other drivers can still see it
             await channel.nack(msg, false, true);
-            
+
             rideAssigned = true;
-            
+
             // Success response
             if (!res.headersSent) {
               clearTimeout(responseTimeout);
-              res.status(200).json({ message: "Ride request assigned", rideRequest });
+              res
+                .status(200)
+                .json({ message: "Ride request assigned", rideRequest });
               await cleanup();
             }
           } else {
@@ -200,8 +216,10 @@ exports.assignRide = async (req, res) => {
             await channel.nack(msg, false, true);
           }
         } catch (error) {
-          rideLogger.error(`Error processing ride request driverid: ${riderId}, error: ${error}`);
-          
+          rideLogger.error(
+            `Error processing ride request driverid: ${riderId}, error: ${error}`
+          );
+
           // Safely nack the message on error
           try {
             if (
@@ -213,20 +231,25 @@ exports.assignRide = async (req, res) => {
               await channel.nack(msg, false, true);
             }
           } catch (nackError) {
-            rideLogger.error(`Error nacking message: driverId: ${riderId}, error: ${nackError}`);
+            rideLogger.error(
+              `Error nacking message: driverId: ${riderId}, error: ${nackError}`
+            );
           }
         }
       },
       { noAck: false } // Manual acknowledgment control
     );
-
   } catch (error) {
-    rideLogger.error(`Error in assign-ride driverId: ${riderId}, error:  ${error}`);
-    
+    rideLogger.error(
+      `Error in assign-ride driverId: ${riderId}, error:  ${error}`
+    );
+
     if (!res.headersSent) {
-      res.status(500).json({ message: "Ride Assignment failed", error: error.message });
+      res
+        .status(500)
+        .json({ message: "Ride Assignment failed", error: error.message });
     }
-    
+
     // Cleanup on error
     if (consumerTag && consumerTag.consumerTag) {
       try {
@@ -241,10 +264,12 @@ exports.assignRide = async (req, res) => {
           //console.log(`Consumer for driver ${riderId} cancelled after error`);
         }
       } catch (cancelError) {
-        rideLogger.error(`Error cancelling consumer for driver ${riderId} after error:${cancelError}` );
+        rideLogger.error(
+          `Error cancelling consumer for driver ${riderId} after error:${cancelError}`
+        );
       }
     }
-    
+
     if (responseTimeout) {
       clearTimeout(responseTimeout);
     }
@@ -267,13 +292,22 @@ exports.confirmRide = async (req, res) => {
       try {
         await removeRideFromQueue(queueName, rideId);
       } catch (error) {
-        rideLogger.error(`Error removing already confirmed ride from queue: rideid:${rideId}, driverid: ${riderId} error:${error}`);
+        rideLogger.error(
+          `Error removing already confirmed ride from queue: rideid:${rideId}, driverid: ${riderId} error:${error}`
+        );
       }
-      return res.status(400).json({ message: "Ride already confirmed by another driver." });
+      return res
+        .status(400)
+        .json({ message: "Ride already confirmed by another driver." });
     }
 
-    if((ride.outStation === true && outStation === false) || (ride.outStation === false && outStation === true)) {
-      return res.status(404).json({ message: "Please pass the outStation param correctly" });
+    if (
+      (ride.outStation === true && outStation === false) ||
+      (ride.outStation === false && outStation === true)
+    ) {
+      return res
+        .status(404)
+        .json({ message: "Please pass the outStation param correctly" });
     }
 
     // Step 2: Confirm the ride in DB first
@@ -285,21 +319,31 @@ exports.confirmRide = async (req, res) => {
     ride.otp = Math.floor(1000 + Math.random() * 9000);
     ride.confirmedAt = moment().format("YYYY-MM-DD HH:mm:ss");
     await ride.save();
-   
+
     // Step 3: Remove from queue (enhanced version)
     try {
       const removed = await removeRideFromQueue(queueName, rideId);
       //console.log(`Ride ${rideId} removal status: ${removed ? "Removed" : "Not found in queue"}`);
     } catch (error) {
-      rideLogger.error(`Error removing ride from queue: driverId:${riderId}, rideId:${rideId}, error: ${error}`);
+      rideLogger.error(
+        `Error removing ride from queue: driverId:${riderId}, rideId:${rideId}, error: ${error}`
+      );
     }
-    
+
     // Step 4: Return response
-    rideLogger.info(`Ride confirmed successfully: driverId:${riderId}, rideId:${rideId}`);
-    return res.status(200).json({ message: "Ride confirmed successfully", ride });
+    rideLogger.info(
+      `Ride confirmed successfully: driverId:${riderId}, rideId:${rideId}`
+    );
+    return res
+      .status(200)
+      .json({ message: "Ride confirmed successfully", ride });
   } catch (error) {
-    rideLogger.error(`Error confirming ride: driverId:${riderId}, rideId:${rideId}, error: ${error}"`);
-    return res.status(500).json({ message: "Error confirming ride", error: error.message });
+    rideLogger.error(
+      `Error confirming ride: driverId:${riderId}, rideId:${rideId}, error: ${error}"`
+    );
+    return res
+      .status(500)
+      .json({ message: "Error confirming ride", error: error.message });
   }
 };
 
@@ -315,17 +359,17 @@ async function removeRideFromQueue(queueName, targetRideId) {
       // Track if we found and removed the target ride
       let foundRide = false;
       let processedCount = 0;
-      
+
       // Create a temporary consumer to scan the queue
       const consumerTag = await channel.consume(
         queueName,
         async (msg) => {
           if (!msg) return;
-          
+
           try {
             const rideRequest = JSON.parse(msg.content.toString());
             processedCount++;
-            
+
             if (rideRequest._id === targetRideId) {
               // Found the target ride - remove it from the queue
               channel.ack(msg);
@@ -336,13 +380,15 @@ async function removeRideFromQueue(queueName, targetRideId) {
               channel.nack(msg, false, true);
             }
           } catch (parseError) {
-            rideLogger.error(`Error parsing message: rideid: ${targetRideId} error:${parseError}`);
+            rideLogger.error(
+              `Error parsing message: rideid: ${targetRideId} error:${parseError}`
+            );
             channel.nack(msg, false, true);
           }
         },
         { noAck: false }
       );
-      
+
       // Set a timeout to stop scanning after a reasonable time
       setTimeout(async () => {
         try {
@@ -357,13 +403,16 @@ async function removeRideFromQueue(queueName, targetRideId) {
             resolve(foundRide);
           }
         } catch (cancelError) {
-          rideLogger.error(`Error cancelling queue scanner: rideid: ${targetRideId} error:${cancelError}`);
+          rideLogger.error(
+            `Error cancelling queue scanner: rideid: ${targetRideId} error:${cancelError}`
+          );
           resolve(foundRide);
         }
       }, 5000); // 5 second timeout
-      
     } catch (error) {
-      rideLogger.error(`Error in removeRideFromQueue:: rideid: ${targetRideId} error:${error}`);
+      rideLogger.error(
+        `Error in removeRideFromQueue:: rideid: ${targetRideId} error:${error}`
+      );
       reject(error);
     }
   });
@@ -375,32 +424,39 @@ exports.cancelRide = async (req, res) => {
 
   try {
     const ride = await Ride.findById(rideId);
-    
+
     if (!ride) {
       return res.status(404).json({ message: "Ride not found" });
     }
-    
+
     // Case 1: Ride is confirmed by this driver - put it back in the queue
-    if (ride && ride.status === 'confirmed' && ride.driverId === riderId) {
+    if (ride && ride.status === "confirmed" && ride.driverId === riderId) {
       // Record cancellation
       await CancelledRidesByDriver.findOneAndUpdate(
         { driverId: riderId },
-        { 
-          $push: { 
+        {
+          $push: {
             rides: {
               rideId: rideId,
               reasonForCancellation: reasonForCancellation,
-              cancelledAt: moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss")
-            } 
-          } 
+              cancelledAt: moment()
+                .tz("Asia/Kolkata")
+                .format("YYYY-MM-DD HH:mm:ss"),
+            },
+          },
         },
         { new: true, upsert: true }
       );
-      
+
       // Reset ride to pending state
-      ride.status = 'pending';
-      ride.createdAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
-      ride.timeoutAt = moment().tz("Asia/Kolkata").add(10, "minutes").format("YYYY-MM-DD HH:mm:ss");
+      ride.status = "pending";
+      ride.createdAt = moment()
+        .tz("Asia/Kolkata")
+        .format("YYYY-MM-DD HH:mm:ss");
+      ride.timeoutAt = moment()
+        .tz("Asia/Kolkata")
+        .add(10, "minutes")
+        .format("YYYY-MM-DD HH:mm:ss");
       ride.driverId = undefined;
       ride.driverName = undefined;
       ride.vehicleNumber = undefined;
@@ -409,55 +465,72 @@ exports.cancelRide = async (req, res) => {
       await ride.save();
 
       // Put ride back in the queue for other drivers
-      const queueName = ride.outStation ? "outstation-ride-requests" : "ride-requests";
-      
+      const queueName = ride.outStation
+        ? "outstation-ride-requests"
+        : "ride-requests";
+
       try {
         // Convert to plain JSON and sanitize
         const plainRide = JSON.parse(JSON.stringify(ride));
         const sanitizedRide = sanitizeRideForQueue(plainRide);
-        
+
         //console.log(`Attempting to put ride ${rideId} back in queue ${queueName}`);
-        
+
         // Use the publishToQueue function with confirmation
         const published = await publishToQueue(queueName, sanitizedRide, {
           expiration: (10 * 60 * 1000).toString(),
-          messageId: sanitizedRide._id.toString()
+          messageId: sanitizedRide._id.toString(),
         });
-        
+
         if (published) {
           //console.log(`✅ Ride ${rideId} successfully pushed back to queue: ${queueName}`);
         } else {
-          rideLogger.error(`❌ Failed to push ride ${rideId} back to queue: ${queueName}`);
+          rideLogger.error(
+            `❌ Failed to push ride ${rideId} back to queue: ${queueName}`
+          );
         }
       } catch (queueErr) {
-        rideLogger.error(`❌ Error pushing ride ${rideId} to queue: error: ${queueErr}`);
+        rideLogger.error(
+          `❌ Error pushing ride ${rideId} to queue: error: ${queueErr}`
+        );
       }
 
+      rideLogger.info(
+        `Ride request cancelled successfully driverId: ${riderId} rideId: ${rideId}`
+      );
 
-      rideLogger.info(`Ride request cancelled successfully driverId: ${riderId} rideId: ${rideId}`);
-
-      return res.status(200).json({ message: "Ride request cancelled successfully", ride });
+      return res
+        .status(200)
+        .json({ message: "Ride request cancelled successfully", ride });
     }
-    
+
     // Case 2: Ride is pending - just mark it as seen by this driver
-    if (ride && ride.status === 'pending') {
+    if (ride && ride.status === "pending") {
       await CancelledRidesByDriver.findOneAndUpdate(
         { driverId: riderId },
         { $addToSet: { rideIds: rideId } },
         { new: true, upsert: true }
       );
-      
+
       // Add to the cache so this driver doesn't see it again
       addRideToCache(rideCache, riderId, rideId);
-      return res.status(200).json({ message: "Ride cancelled, requeued for other drivers", ride });
+      return res
+        .status(200)
+        .json({ message: "Ride cancelled, requeued for other drivers", ride });
     }
-    
+
     // Otherwise, return error
-    return res.status(400).json({ message: "Cannot cancel ride with current status", status: ride.status });
-    
+    return res.status(400).json({
+      message: "Cannot cancel ride with current status",
+      status: ride.status,
+    });
   } catch (error) {
-    rideLogger.error(`Error cancelling ride: driverid: ${riderId}, rideId: ${rideId}, error: ${error}`);
-    return res.status(500).json({ message: "Error cancelling ride", error: error.message });
+    rideLogger.error(
+      `Error cancelling ride: driverid: ${riderId}, rideId: ${rideId}, error: ${error}`
+    );
+    return res
+      .status(500)
+      .json({ message: "Error cancelling ride", error: error.message });
   }
 };
 
@@ -467,35 +540,33 @@ exports.goOffline = async (req, res) => {
 
   await Driver.findByIdAndUpdate(riderId, { online: false });
   // Check if the consumer exists in the cache
-  return res.status(200).json({ message: `Driver ${riderId} has gone offline.` });
-  
+  return res
+    .status(200)
+    .json({ message: `Driver ${riderId} has gone offline.` });
 };
-
 
 exports.startRide = async (req, res) => {
   const { rideId, otp } = req.body;
 
   try {
     const ride = await Ride.findById(rideId);
-   
-    if(ride && ride.status == 'confirmed'){
 
+    if (ride && ride.status == "confirmed") {
       if (ride.otp !== otp) {
-        return res.status(400).json({ message: "Invalid OTP. Please try again." });
+        return res
+          .status(400)
+          .json({ message: "Invalid OTP. Please try again." });
       }
 
-      ride.status = 'started';
+      ride.status = "started";
       await ride.save();
 
       res.status(200).json({ message: "Ride started successfully", ride });
     }
-
   } catch (error) {
     res.status(500).json({ message: "Error starting ride", error });
   }
 };
-
-
 
 exports.completeRide = async (req, res) => {
   const { rideId, riderId } = req.body;
@@ -503,13 +574,15 @@ exports.completeRide = async (req, res) => {
   try {
     const ride = await Ride.findById(rideId);
 
-    if (!ride || ride.status !== "started" ) {
-      return res.status(400).json({ message: "Invalid ride status or ride not found." });
+    if (!ride || ride.status !== "started") {
+      return res
+        .status(400)
+        .json({ message: "Invalid ride status or ride not found." });
     }
 
     // Determine the current drop details based on `currentDropNumber`
     let currentDrop;
-    let nextDrop; 
+    let nextDrop;
     switch (ride.currentDropNumber) {
       case "drop1":
         currentDrop = ride.dropDetails1;
@@ -524,7 +597,9 @@ exports.completeRide = async (req, res) => {
         nextDrop = null;
         break;
       default:
-        return res.status(400).json({ message: "Invalid current drop number." });
+        return res
+          .status(400)
+          .json({ message: "Invalid current drop number." });
     }
 
     // Check if the driver is within 500 meters of the current drop location
@@ -536,15 +611,15 @@ exports.completeRide = async (req, res) => {
       });
     }
  */
-   
+
     // Proceed based on whether there's a next drop
     if (JSON.stringify(nextDrop) !== "{}" && nextDrop != null) {
       // Update currentDropNumber to the next drop
       const presentDropNumber = ride.currentDropNumber;
-      ride.currentDropNumber = nextDrop === ride.dropDetails2 ? "drop2" : "drop3";
+      ride.currentDropNumber =
+        nextDrop === ride.dropDetails2 ? "drop2" : "drop3";
       ride.driverId = riderId;
       await ride.save();
-
 
       return res.status(200).json({
         message: `Ride at ${presentDropNumber} completed. Now proceeding to the next drop.`,
@@ -564,83 +639,107 @@ exports.completeRide = async (req, res) => {
       { new: true, upsert: true } // Create a new document if it doesn't exist
     );
 
-
     // If no next drop, mark ride as completed
     ride.status = "completed";
     ride.driverId = riderId;
-    ride.completedAt = moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+    ride.completedAt = moment()
+      .tz("Asia/Kolkata")
+      .format("YYYY-MM-DD HH:mm:ss");
     await ride.save();
 
-    rideLogger.info(`Ride fully completed successfully: driverId: ${riderId}, rideId: ${rideId}` );
+    rideLogger.info(
+      `Ride fully completed successfully: driverId: ${riderId}, rideId: ${rideId}`
+    );
 
-    return res.status(200).json({ message: "Ride fully completed successfully.", ride });
+    return res
+      .status(200)
+      .json({ message: "Ride fully completed successfully.", ride });
   } catch (error) {
-    rideLogger.error(`Error completing ride: driverId: ${riderId}, rideId: ${rideId} error: ${error}` );
+    rideLogger.error(
+      `Error completing ride: driverId: ${riderId}, rideId: ${rideId} error: ${error}`
+    );
     res.status(500).json({ message: "Error completing ride", error });
   }
 };
 
-
 exports.ridePaymentStatus = async (req, res) => {
-    try {
-        const ride = await Ride.findById(req.params.rideId);
-        if (ride.paymentStatus == true) return res.status(200).json({ status: 'Payment already updated for this ride' });
-        const driver = await Driver.findById(ride.driverId);
-        if (!ride) return res.status(404).json({ error: 'Ride not found' });
+  try {
+    const ride = await Ride.findById(req.params.rideId);
+    if (ride.paymentStatus == true)
+      return res
+        .status(200)
+        .json({ status: "Payment already updated for this ride" });
+    const driver = await Driver.findById(ride.driverId);
+    if (!ride) return res.status(404).json({ error: "Ride not found" });
 
-        ride.paymentStatus = req.body.status;
-        ride.driverShare = (ride.fare)*0.82;
-        ride.dropacShare = (ride.fare)*0.18;
-        await ride.save();
+    ride.paymentStatus = req.body.status;
 
-
-        const todayDate = new Date().toISOString().split("T")[0]; // Get today's date in YYYY-MM-DD format
-        
-        const authToken = req.headers.authorization;
-
-        // Call the existing API internally
-        const response = await fetch(
-          `https://dropac-backend.onrender.com/api/driver-rides/transaction/${ride.driverId}/${todayDate}`,
-          {
-            headers: {
-                'Authorization': authToken
-              }
-          }
-        );
-        const data = await response.json();
-
-
-        const { rides, walletBalance } = data;
-
-        const fare = ride.fare;
-        const part80 = fare * 0.82;
-        const part20 = fare * 0.18;
-
-        if (rides.length === 0) {
-          driver.walletBalance.part80 = 0;
-        }
-        
-
-        driver.walletBalance.total += fare;
-        driver.walletBalance.part80 += part80;
-        driver.walletBalance.part20 += part20;
-
-        driver.orders +=1;
-        
-
-        await driver.save();
-        paymentLogger.info(`Payment status updated successfully ride id: ${ride._id}, driverId : ${ride.driverId}` );
-
-        res.status(200).json({ message: 'Payment status updated successfully', ride });
-    } catch (error) {
-        console.log("payment error: ",error);
-        res.status(500).json({ error: 'Failed to update payment status', details: error.message });
-        paymentLogger.error(`Failed to update payment status:  error: ${error}` );
-
+    if (ride.vehicleType == "Bike") {
+      ride.driverShare = ride.fare * 0.9;
+      ride.dropacShare = ride.fare * 0.1;
+    } else {
+      ride.driverShare = ride.fare * 0.82;
+      ride.dropacShare = ride.fare * 0.18;
     }
+
+    await ride.save();
+
+    const todayDate = new Date().toISOString().split("T")[0]; // Get today's date in YYYY-MM-DD format
+
+    const authToken = req.headers.authorization;
+
+    // Call the existing API internally
+    const response = await fetch(
+      `https://dropac-backend.onrender.com/api/driver-rides/transaction/${ride.driverId}/${todayDate}`,
+      {
+        headers: {
+          Authorization: authToken,
+        },
+      }
+    );
+    const data = await response.json();
+
+    const { rides, walletBalance } = data;
+
+    const fare = ride.fare;
+
+    if (ride.vehicleType == "Bike") {
+      const part80 = fare * 0.9;
+      const part20 = fare * 0.1;
+    } else {
+      const part80 = fare * 0.82;
+      const part20 = fare * 0.18;
+    }
+
+    if (rides.length === 0) {
+      driver.walletBalance.part80 = 0;
+    }
+
+    driver.walletBalance.total += fare;
+    driver.walletBalance.part80 += part80;
+    driver.walletBalance.part20 += part20;
+
+    driver.orders += 1;
+
+    await driver.save();
+    paymentLogger.info(
+      `Payment status updated successfully ride id: ${ride._id}, driverId : ${ride.driverId}`
+    );
+
+    res
+      .status(200)
+      .json({ message: "Payment status updated successfully", ride });
+  } catch (error) {
+    console.log("payment error: ", error);
+    res.status(500).json({
+      error: "Failed to update payment status",
+      details: error.message,
+    });
+    paymentLogger.error(`Failed to update payment status:  error: ${error}`);
+  }
 };
 
-exports.getRideStatus = async(req, res)=>{
+exports.getRideStatus = async (req, res) => {
   const { rideId } = req.body;
   try {
     const ride = await Ride.findById(rideId);
@@ -648,16 +747,14 @@ exports.getRideStatus = async(req, res)=>{
       return res.status(404).json({ message: "Ride not found" });
     }
 
-  
-
     // If the ride is still valid, return its status
-    res.status(200).json({ message: "Ride status retrieved successfully", ride });
+    res
+      .status(200)
+      .json({ message: "Ride status retrieved successfully", ride });
   } catch (error) {
     res.status(500).json({ message: "Retrieving ride status failed", error });
   }
-
 };
-
 
 exports.getAllDriverTransactions = async (req, res) => {
   try {
@@ -666,16 +763,15 @@ exports.getAllDriverTransactions = async (req, res) => {
 
     // Fetch rides excluding today's transactions
     const rides = await Ride.find({
-        driverId: req.params.driverId,
-        status: "completed",
-        createdAt: { $lt: today.toISOString() } // Fetch only rides before today
-    })
-    .sort({ createdAt: -1 }); // Sort in descending order (newest first)
+      driverId: req.params.driverId,
+      status: "completed",
+      createdAt: { $lt: today.toISOString() }, // Fetch only rides before today
+    }).sort({ createdAt: -1 }); // Sort in descending order (newest first)
 
     // Fetch driver document
     const driver = await Driver.findById(req.params.driverId);
     if (!driver) {
-        return res.status(404).json({ error: 'Driver not found' });
+      return res.status(404).json({ error: "Driver not found" });
     }
 
     // Access walletBalance from driver document
@@ -683,9 +779,11 @@ exports.getAllDriverTransactions = async (req, res) => {
 
     // Combine rides and walletBalance into a single response object
     res.status(200).json({ rides, walletBalance });
-} catch (error) {
-    res.status(500).json({ error: 'Failed to retrieve rides', details: error.message });
-}
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to retrieve rides", details: error.message });
+  }
 };
 
 exports.getTransactionByDate = async (req, res) => {
@@ -693,7 +791,7 @@ exports.getTransactionByDate = async (req, res) => {
     const date = new Date(req.params.date);
     const nextDate = new Date(date);
     nextDate.setDate(date.getDate() + 1);
-    
+
     // Fetch rides with completedAt matching the date and calculate total driverShare
     const rides = await Ride.aggregate([
       {
@@ -702,60 +800,74 @@ exports.getTransactionByDate = async (req, res) => {
           status: "completed",
           $expr: {
             $and: [
-              { $gte: [{ $dateFromString: { dateString: "$completedAt" } }, date] },
-              { $lt: [{ $dateFromString: { dateString: "$completedAt" } }, nextDate] }
-            ]
-          }
-        }
+              {
+                $gte: [
+                  { $dateFromString: { dateString: "$completedAt" } },
+                  date,
+                ],
+              },
+              {
+                $lt: [
+                  { $dateFromString: { dateString: "$completedAt" } },
+                  nextDate,
+                ],
+              },
+            ],
+          },
+        },
       },
-      { $sort: { completedAt: -1 } }
+      { $sort: { completedAt: -1 } },
     ]);
-    
+
     // Calculate total driverShare
-    const todayDriverShare = rides.reduce((total, ride) => 
-      total + (ride.driverShare || 0), 0);
-    
+    const todayDriverShare = rides.reduce(
+      (total, ride) => total + (ride.driverShare || 0),
+      0
+    );
+
     // Fetch driver document
     const driver = await Driver.findById(req.params.driverId);
     if (!driver) {
-      return res.status(404).json({ error: 'Driver not found' });
+      return res.status(404).json({ error: "Driver not found" });
     }
-    
+
     // Access walletBalance from driver document
     const walletBalance = driver.walletBalance;
-    
+
     // Combine rides, walletBalance, and todayDriverShare into response
-    res.status(200).json({ 
-      rides, 
+    res.status(200).json({
+      rides,
       walletBalance,
-      todayDriverShare
+      todayDriverShare,
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to retrieve rides', details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to retrieve rides", details: error.message });
   }
 };
 
-
-
-exports.rateUser = async(req, res) =>{
-    const {rideId, rating} = req.body;
-    try {
-      const ride = await Ride.findById(rideId);
-      if (!ride) {
-        return res.status(404).json({ message: "Ride not found" });
-      }
-  
-      ride.ratingByDriver = rating;
-      await ride.save();
-  
-      // If the ride is still valid, return its status
-      res.status(200).json({ message: "Thanks for your rating, we appreciate that :)", ride });
-    } catch (error) {
-      res.status(500).json({ message: "Something went wrong, please try again later", error });
+exports.rateUser = async (req, res) => {
+  const { rideId, rating } = req.body;
+  try {
+    const ride = await Ride.findById(rideId);
+    if (!ride) {
+      return res.status(404).json({ message: "Ride not found" });
     }
 
-};
+    ride.ratingByDriver = rating;
+    await ride.save();
 
+    // If the ride is still valid, return its status
+    res
+      .status(200)
+      .json({ message: "Thanks for your rating, we appreciate that :)", ride });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Something went wrong, please try again later", error });
+  }
+};
 
 function sanitizeRideForQueue(ride) {
   const base = {
@@ -772,7 +884,7 @@ function sanitizeRideForQueue(ride) {
     status: "pending",
     createdAt: ride.createdAt,
     timeoutAt: ride.timeoutAt,
-    __v: ride.__v // Add this if frontend expects it
+    __v: ride.__v, // Add this if frontend expects it
   };
 
   // Only add dropDetails2 if it exists and has at least one non-empty property
@@ -782,10 +894,8 @@ function sanitizeRideForQueue(ride) {
     !Array.isArray(ride.dropDetails2) &&
     Object.keys(ride.dropDetails2).length > 0 &&
     // Check if at least one property has a non-empty value
-    Object.values(ride.dropDetails2).some(value => 
-      value !== null && 
-      value !== undefined && 
-      value !== ''
+    Object.values(ride.dropDetails2).some(
+      (value) => value !== null && value !== undefined && value !== ""
     )
   ) {
     base.dropDetails2 = ride.dropDetails2;
@@ -798,10 +908,8 @@ function sanitizeRideForQueue(ride) {
     !Array.isArray(ride.dropDetails3) &&
     Object.keys(ride.dropDetails3).length > 0 &&
     // Check if at least one property has a non-empty value
-    Object.values(ride.dropDetails3).some(value => 
-      value !== null && 
-      value !== undefined && 
-      value !== ''
+    Object.values(ride.dropDetails3).some(
+      (value) => value !== null && value !== undefined && value !== ""
     )
   ) {
     base.dropDetails3 = ride.dropDetails3;
@@ -809,4 +917,3 @@ function sanitizeRideForQueue(ride) {
 
   return base;
 }
-

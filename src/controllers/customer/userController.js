@@ -22,10 +22,10 @@ const vehiclePricing = {
     additionalStopCost: 8 
   },
   "Tata Ace": { 
-    baseFare: 510, 
-    perKmFare: 14,
-    outstationBaseFare: 1100,
-    outstationPerKmFare: 32, 
+    baseFare: 450, 
+    perKmFare: 13,
+    outstationBaseFare: 1130,
+    outstationPerKmFare: 33, 
     minDistanceForBaseFare: 0.7,
     minDistanceForOutstationBaseFare: 25,
     additionalStopCost: 12,
@@ -42,20 +42,20 @@ const vehiclePricing = {
     outstationAdditionalStopCost: 35
   },
   "8ft Truck": { 
-    baseFare: 420, 
-    perKmFare: 16, 
-    outstationBaseFare: 1000,
-    outstationPerKmFare: 32,
+    baseFare: 500, 
+    perKmFare: 17, 
+    outstationBaseFare: 1150,
+    outstationPerKmFare: 40,
     minDistanceForBaseFare: 0.7,
     minDistanceForOutstationBaseFare: 25,
     additionalStopCost: 12,
-    outstationAdditionalStopCost: 40
+    outstationAdditionalStopCost: 41
   },
   "9ft Truck": { 
     baseFare: 750, 
     perKmFare: 19, 
     outstationBaseFare: 1300,
-    outstationPerKmFare: 45,
+    outstationPerKmFare: 47,
     minDistanceForBaseFare: 0.7,
     minDistanceForOutstationBaseFare: 25,
     additionalStopCost: 14,
