@@ -40,6 +40,7 @@ exports.initiatePayment = async (req, res) => {
 
     res.json(order); // Send order details to frontend, including order ID
   } catch (error) {
+    console.log(error);
     paymentLogger.error(`Error creating order ${error}`);
     res.status(500).send('Error creating order');
   }
